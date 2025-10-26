@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lunar-ecommerce-app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+      - ./storage:/var/www/html/storage
+    ports:
+      - "8000:80"
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - DB_CONNECTION=mysql
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_DATABASE=lunar_ecommerce
+      - DB_USERNAME=lunar_user
+      - DB_PASSWORD=lunar_password
+      - QUEUE_CONNECTION=database
+      - CACHE_STORE=database
+    depends_on:
+      - db
+    networks:
+      - lunar-network
+
+  db:
+    image: mysql:8.0
+    container_name: lunar-ecommerce-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: lunar_ecommerce
+      MYSQL_USER: lunar_user
+      MYSQL_PASSWORD: lunar_password
+      MYSQL_ROOT_PASSWORD: root_password
+    volumes:
+      - dbdata:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    networks:
+      - lunar-network
+
+  queue:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lunar-ecommerce-queue
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+    command: php artisan queue:work --tries=3 --timeout=90
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - DB_CONNECTION=mysql
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_DATABASE=lunar_ecommerce
+      - DB_USERNAME=lunar_user
+      - DB_PASSWORD=lunar_password
+    depends_on:
+      - db
+      - app
+    networks:
+      - lunar-network
+
+networks:
+  lunar-network:
+    driver: bridge
+
+volumes:
+  dbdata:
+    driver: local
